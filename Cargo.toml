@@ -1,0 +1,38 @@
+[package]
+name = "yett"
+version = "0.1.0"
+edition = "2021"
+publish = true
+description = "Deliver secrets to a process environment from committed SOPS files, without plaintext reaching disk."
+license = "MIT"
+repository = "https://github.com/warpforgehq/yett"
+readme = "README.md"
+keywords = ["secrets", "sops", "age", "dotenv", "cli"]
+categories = ["command-line-utilities", "cryptography"]
+
+[lib]
+name = "yett"
+path = "src/lib.rs"
+
+[[bin]]
+name = "yett"
+path = "src/main.rs"
+
+[dependencies]
+age = { version = "=0.12.1", features = ["armor"] }
+rops = { version = "=0.1.7", default-features = false, features = ["age", "yaml", "aes-gcm", "sha2"] }
+secrecy = "=0.10.3"
+serde = { version = "=1.0.228", features = ["derive"] }
+zeroize = { version = "=1.9.0", features = ["derive"] }
+clap = { version = "=4.6.6", features = ["derive"] }
+serde_yaml = "=0.9.34"
+thiserror = "=2.0.20"
+rpassword = "=7.5.4"
+base64 = "=0.22.1"
+percent-encoding = "=2.3.2"
+
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.189"
+
+[dev-dependencies]
+tempfile = "=3.27.0"

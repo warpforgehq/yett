@@ -1,0 +1,21 @@
+pub mod access;
+pub mod check;
+pub mod edit;
+pub mod envfile;
+pub mod error;
+pub mod harden;
+pub mod identity;
+pub mod onboard;
+pub mod redact;
+pub mod r#ref;
+pub mod resolver;
+mod rops_bridge;
+pub mod run;
+pub mod sops;
+pub mod sopsconfig;
+
+pub use error::Error;
+pub use harden::ResolvedSecret;
+pub use redact::Redactor;
+pub use resolver::Resolver;
+pub use rops_bridge::BridgeError;

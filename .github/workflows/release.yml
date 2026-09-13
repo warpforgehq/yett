@@ -1,0 +1,220 @@
+# Release workflow for the standalone yett repository: this directory becomes
+# the repository root on extraction.
+#
+# Triggered by a v* tag. The tag must equal "v" + the Cargo.toml version.
+#
+# Repository secrets consumed by this workflow (each job is skipped when its
+# secret is unset, so an untrusted fork cannot publish):
+#   CARGO_REGISTRY_TOKEN  crates.io API token for `cargo publish`
+#   NPM_TOKEN             npm automation token with publish rights on @warpforge
+#   HOMEBREW_TAP_TOKEN    token allowed to push to ephor/homebrew-tap
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    name: Tag matches Cargo.toml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Fail unless the tag is v + Cargo.toml version
+        run: |
+          set -eu
+          tag="${GITHUB_REF_NAME}"
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          if [ -z "$version" ]; then
+            echo "could not read version from Cargo.toml" >&2
+            exit 1
+          fi
+          if [ "$tag" != "v$version" ]; then
+            echo "tag $tag does not match Cargo.toml version v$version" >&2
+            exit 1
+          fi
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Runner labels verified against the GitHub-hosted runners reference:
+          # https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+          - target: aarch64-apple-darwin
+            os: macos-15
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Rust
+        run: |
+          set -eu
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Package archive
+        run: sh scripts/package.sh "${GITHUB_REF_NAME#v}" "${{ matrix.target }}"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: yett-${{ github.ref_name }}-${{ matrix.target }}
+          path: "*.tar.gz"
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS
+        run: |
+          set -eu
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum -- *.tar.gz > SHA256SUMS
+          else
+            shasum -a 256 -- *.tar.gz > SHA256SUMS
+          fi
+          cat SHA256SUMS
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "yett ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            dist/*.tar.gz dist/SHA256SUMS
+
+  cargo:
+    name: cargo publish
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Rust
+        run: |
+          set -eu
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Publish to crates.io
+        if: env.CARGO_REGISTRY_TOKEN != ''
+        run: cargo publish --locked
+
+  npm:
+    name: npm publish
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate the npm tree
+        run: sh scripts/gen-npm.sh "${GITHUB_REF_NAME#v}" dist
+
+      - name: Publish @warpforge/yett and platform packages
+        if: env.NPM_TOKEN != ''
+        run: |
+          set -eu
+          printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$HOME/.npmrc"
+          trap 'rm -f "$HOME/.npmrc"' EXIT
+          tree="dist/npm"
+          for pkg in \
+            yett-linux-x64 \
+            yett-linux-arm64 \
+            yett-darwin-x64 \
+            yett-darwin-arm64
+          do
+            ( cd "$tree/$pkg" && npm publish --access public )
+          done
+          ( cd "$tree/yett" && npm publish --access public )
+
+  brew:
+    name: Homebrew tap
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      HOMEBREW_TAP_REPO: ephor/homebrew-tap
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate the formula
+        env:
+          YETT_REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum -- *.tar.gz > SHA256SUMS
+          else
+            shasum -a 256 -- *.tar.gz > SHA256SUMS
+          fi
+          cd ..
+          sh scripts/gen-brew.sh "${GITHUB_REF_NAME#v}" dist/SHA256SUMS dist/yett.rb
+          ruby -c dist/yett.rb
+
+      - name: Update the tap
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        run: |
+          set -eu
+          git clone --depth 1 \
+            "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${HOMEBREW_TAP_REPO}.git" tap
+          mkdir -p tap/Formula
+          cp dist/yett.rb tap/Formula/yett.rb
+          cd tap
+          git config user.name "yett release bot"
+          git config user.email "release-bot@users.noreply.github.com"
+          git add Formula/yett.rb
+          if git diff --cached --quiet; then
+            echo "formula already up to date"
+            exit 0
+          fi
+          git commit -m "yett ${GITHUB_REF_NAME#v}"
+          git push

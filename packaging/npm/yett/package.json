@@ -1,0 +1,26 @@
+{
+  "name": "@warpforge/yett",
+  "version": "0.0.0",
+  "description": "Deliver secrets to a process environment from committed SOPS files",
+  "license": "MIT",
+  "homepage": "https://github.com/warpforgehq/yett",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/warpforgehq/yett.git"
+  },
+  "bin": {
+    "yett": "bin/yett.js"
+  },
+  "files": [
+    "bin/yett.js"
+  ],
+  "optionalDependencies": {
+    "@warpforge/yett-linux-x64": "0.0.0",
+    "@warpforge/yett-linux-arm64": "0.0.0",
+    "@warpforge/yett-darwin-x64": "0.0.0",
+    "@warpforge/yett-darwin-arm64": "0.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@warpforge/yett-linux-arm64",
+  "version": "0.0.0",
+  "description": "yett binary for Linux arm64 (installed automatically by @warpforge/yett)",
+  "license": "MIT",
+  "homepage": "https://github.com/warpforgehq/yett",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/warpforgehq/yett.git"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin/yett"
+  ]
+}
