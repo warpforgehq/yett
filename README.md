@@ -4,8 +4,7 @@ Keep your project's secrets in Git. Values are encrypted, a diff shows which
 key changed, and the decrypted values go into a process's environment when you
 run it, never into a file yett writes.
 
-**Status:** unreleased pre-1.0 software. The interface is still settling.
-macOS and Linux.
+**Status:** pre-1.0. The interface is still settling. macOS and Linux.
 
 ## The problem
 
@@ -53,17 +52,16 @@ short-lived process, and the files are plain SOPS.
 
 ## Install
 
-Not on crates.io, npm, or a Homebrew tap yet. Build from source for now:
-
 ```sh
-git clone https://github.com/warpforgehq/yett
-cd yett && cargo install --path .
+brew install warpforgehq/tap/yett   # macOS and Linux
+cargo install yett                  # with a Rust toolchain
+npm install -g @warpforge/yett      # or run it once with `npx yett`
 ```
 
-The first release adds `cargo install yett`, a Homebrew tap, prebuilt archives
-for macOS and Linux on arm64 and amd64, and `@warpforge/yett` on npm with
-per-platform optional dependencies so `npx yett` needs no compiler. Nothing is
-published until that release exists.
+Every GitHub Release carries prebuilt archives for macOS and Linux on arm64 and
+amd64. The npm package selects the right binary through per-platform
+`@warpforge/yett-<os>-<arch>` optional dependencies, so `npx yett` needs no
+compiler.
 
 The `sops` binary is optional. Everything below runs through `yett` alone;
 `sops` stays useful for reading and editing the files without it.
