@@ -1,6 +1,6 @@
 [package]
 name = "yett"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 publish = true
 description = "Deliver secrets to a process environment from committed SOPS files, without plaintext reaching disk."
