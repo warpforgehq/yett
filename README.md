@@ -53,6 +53,7 @@ short-lived process, and the files are plain SOPS.
 ## Install
 
 ```sh
+brew trust warpforgehq/tap          # one-time; Homebrew asks this of any third-party tap
 brew install warpforgehq/tap/yett   # macOS and Linux
 cargo install yett                  # with a Rust toolchain
 npm install -g @warpforge/yett      # or run it once with `npx yett`
