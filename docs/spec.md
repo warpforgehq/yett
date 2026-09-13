@@ -393,7 +393,7 @@ dependent on us, and nobody would notice from reading the code.
 
 GitHub Releases with per-platform archives is the base every other channel
 wraps, and what CI and `curl | sh` need. On top: a brew tap as the primary path
-(`ephor/homebrew-tap` today, `warpforgehq` once the repo moves), and npm as
+(`warpforgehq/homebrew-tap`), and npm as
 `@warpforge/yett`, shipping the binary through per-platform
 `@warpforge/yett-<os>-<arch>` optionalDependencies the way esbuild and biome do.
 `cargo install` comes free. No PyPI, no Go module — a

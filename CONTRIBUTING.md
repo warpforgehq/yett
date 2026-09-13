@@ -37,7 +37,7 @@ Each publishing job is skipped when its secret is unset:
 | `NPM_TOKEN` | npm publishing under `@warpforge` |
 | `HOMEBREW_TAP_TOKEN` | pushing `Formula/yett.rb` to the tap |
 
-`HOMEBREW_TAP_REPO` defaults to `ephor/homebrew-tap`. The three shell scripts
+`HOMEBREW_TAP_REPO` defaults to `warpforgehq/homebrew-tap`. The three shell scripts
 the workflow runs can also be run by hand: `scripts/package.sh` builds one
 archive, `scripts/gen-npm.sh` materializes the npm tree from the archives, and
 `scripts/gen-brew.sh` renders the formula from `SHA256SUMS`.
