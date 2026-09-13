@@ -1,10 +1,12 @@
 pub mod access;
 pub mod check;
+mod dotenv;
 pub mod edit;
 pub mod envfile;
 pub mod error;
 pub mod harden;
 pub mod identity;
+pub mod import;
 pub mod onboard;
 pub mod redact;
 pub mod r#ref;

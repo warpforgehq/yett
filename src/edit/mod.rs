@@ -212,7 +212,7 @@ pub fn pointer_reference(tier: &str, pointer: &str) -> Result<crate::r#ref::Ref,
     ))?)
 }
 
-fn tier_path(tier: &str) -> Result<PathBuf, Error> {
+pub(crate) fn tier_path(tier: &str) -> Result<PathBuf, Error> {
     let named = !tier.is_empty()
         && tier
             .chars()
@@ -225,7 +225,7 @@ fn tier_path(tier: &str) -> Result<PathBuf, Error> {
     Ok(Path::new(SECRETS_DIR).join(format!("secrets.{tier}.enc.yaml")))
 }
 
-fn create_recipients(tier: &str) -> Result<Vec<String>, Error> {
+pub(crate) fn create_recipients(tier: &str) -> Result<Vec<String>, Error> {
     let access =
         AccessList::load(Path::new(ACCESS_PATH)).map_err(|error| unconfigured(tier, &error))?;
     let recipients = access

@@ -81,55 +81,64 @@ pub struct Upsert {
 
 impl Upsert {
     pub fn prepare(path: &Path, name: &str, reference: &str) -> Result<Self, Error> {
-        if !is_valid_key(name) {
-            return Err(Error::Usage(format!(
-                "invalid environment variable name `{name}`"
-            )));
-        }
-        let existing = match std::fs::read_to_string(path) {
-            Ok(text) => Some(text),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-            Err(error) => {
+        Self::prepare_many(path, &[(name, reference)], false)
+    }
+
+    pub fn prepare_many(path: &Path, entries: &[(&str, &str)], force: bool) -> Result<Self, Error> {
+        for (name, _) in entries {
+            if !is_valid_key(name) {
                 return Err(Error::Usage(format!(
-                    "cannot read {}: {error}",
-                    path.display()
-                )))
-            }
-        };
-        let Some(text) = existing else {
-            return Ok(Self {
-                path: path.to_path_buf(),
-                text: format!("{ENV_REFS_TEMPLATE}{name}={reference}\n"),
-            });
-        };
-        let parsed = EnvFile::parse(&text).map_err(|error| Error::Usage(error.to_string()))?;
-        if let Some((_, value)) = parsed.iter().find(|(key, _)| *key == name) {
-            if !crate::r#ref::Ref::is_ref(value) {
-                return Err(Error::Usage(format!(
-                    "{name} already has a literal value in {}; refusing to replace it",
-                    path.display()
+                    "invalid environment variable name `{name}`"
                 )));
             }
-            let text = replace_value(&text, name, reference);
-            return Ok(Self {
-                path: path.to_path_buf(),
-                text,
-            });
         }
-        let separator = if text.is_empty() || text.ends_with('\n') {
-            ""
-        } else {
-            "\n"
-        };
+        let existing = read_optional(path)?;
+        let mut text = existing.unwrap_or_else(|| ENV_REFS_TEMPLATE.to_string());
+        let parsed = EnvFile::parse(&text).map_err(|error| Error::Usage(error.to_string()))?;
+        for (name, reference) in entries {
+            if let Some((_, value)) = parsed.iter().find(|(key, _)| key == name) {
+                if !force && !crate::r#ref::Ref::is_ref(value) {
+                    return Err(Error::Usage(format!(
+                        "{name} already has a literal value in {}; refusing to replace it",
+                        path.display()
+                    )));
+                }
+            }
+            text = upsert_text(text, name, reference);
+        }
         Ok(Self {
             path: path.to_path_buf(),
-            text: format!("{text}{separator}{name}={reference}\n"),
+            text,
         })
     }
 
     pub fn write(self) -> Result<(), Error> {
         access::write_atomic(&self.path, &self.text)
     }
+}
+
+fn read_optional(path: &Path) -> Result<Option<String>, Error> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => Ok(Some(text)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(Error::Usage(format!(
+            "cannot read {}: {error}",
+            path.display()
+        ))),
+    }
+}
+
+fn upsert_text(text: String, name: &str, reference: &str) -> String {
+    let parsed = EnvFile::parse(&text).expect("preflight parsed the environment file");
+    if parsed.iter().any(|(key, _)| key == name) {
+        return replace_value(&text, name, reference);
+    }
+    let separator = if text.is_empty() || text.ends_with('\n') {
+        ""
+    } else {
+        "\n"
+    };
+    format!("{text}{separator}{name}={reference}\n")
 }
 
 fn replace_value(text: &str, name: &str, reference: &str) -> String {

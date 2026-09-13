@@ -46,6 +46,20 @@ enum Command {
         #[arg(value_name = "POINTER")]
         pointer: String,
     },
+    Import {
+        #[arg(long, value_name = "PATH", default_value = ".env.local")]
+        from: PathBuf,
+        #[arg(long, value_name = "T", default_value = "dev")]
+        tier: String,
+        #[arg(long, value_name = "PATH", default_value = ".env.refs")]
+        env_file: PathBuf,
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long, value_name = "K1,K2")]
+        exclude: Option<String>,
+        #[arg(long)]
+        force: bool,
+    },
     Edit {
         tier: String,
     },
@@ -118,6 +132,14 @@ fn run(identity: Option<PathBuf>, command: Command) -> Result<(), Error> {
             tier,
             pointer,
         } => yett::edit::set_with_ref(&tier, &pointer, identity, &env_file, r#ref.as_deref()),
+        Command::Import {
+            from,
+            tier,
+            env_file,
+            dry_run,
+            exclude,
+            force,
+        } => yett::import::import(&from, &tier, &env_file, dry_run, exclude.as_deref(), force),
         Command::Edit { tier } => yett::edit::edit(&tier, identity),
         Command::Init { tiers, handle } => init(&tiers, handle.as_deref()),
         Command::Keygen { tier, register } => keygen(&tier, register.as_deref()),

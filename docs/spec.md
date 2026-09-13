@@ -184,6 +184,7 @@ dead service or a request sent to a third party with a placeholder in it.
 yett run [--env-file <f>] [--identity <path>] -- <command> [args...]
 yett get <tier>/<pointer>             # e.g. `yett get dev/db/url`
 yett set [--env-file <f>] [--ref <name>] <tier> <pointer>  # reads value from stdin
+yett import [--from <path>] [--tier <t>] [--env-file <path>] [--dry-run] [--exclude <k1,k2>] [--force]
 yett edit <tier>                     # $EDITOR on a RAM-backed path
 yett init [--tiers <t,...>] [--handle <h>]  # --handle scaffolds one tier end to end
 yett keygen [--tier <t>] [--register <h>]   # --register registers the key and refreshes .sops.yaml
@@ -217,6 +218,11 @@ command (`run`, `get`, `check`, `access sync`) takes `--identity <path>`, with
   file with the `init` header when needed. An existing reference for the name
   is replaced in place; an existing literal value is a usage error checked
   before the encrypted file is changed.
+- **`import`** migrates every key from `.env.local` (or `--from <path>`) into
+  the selected tier without secret-name heuristics or an identity prompt,
+  writes canonical references to `.env.refs`, and leaves the source untouched.
+  `--exclude` omits exact key names, `--dry-run` prints the references without
+  writing, and `--force` permits replacing literal values in the env file.
 - **`init`** creates `.yett/`, `.env.refs`, an empty access list, and the
   generated `.sops.yaml`. With `--handle <h>` and exactly one tier it also
   creates (or reuses) the identity and registers its public key, so the first

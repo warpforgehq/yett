@@ -108,6 +108,15 @@ DATABASE_PASSWORD=ref+sops://.yett/secrets.dev.enc.yaml#/DATABASE_PASSWORD
 LOG_LEVEL=debug
 ```
 
+Already have a `.env.local`? Migrate every variable in one command. `yett`
+encrypts the values for `dev`, writes their references, and leaves the source
+file untouched:
+
+```console
+$ yett import
+imported 12 variables; you can now remove .env.local or keep it gitignored
+```
+
 Run a command with the resolved environment:
 
 ```console
@@ -124,6 +133,7 @@ committed.
 
 ```console
 $ printf 'new-value' | yett set --ref DATABASE_PASSWORD dev db/password
+$ yett import --from .env.local --tier dev
 $ yett get dev/db/password
 $ yett edit dev                                      # $EDITOR on a RAM-backed copy
 $ yett check                                         # CI: does everything agree?
@@ -188,6 +198,7 @@ runs; the default identity path only accepts a passphrase-encrypted key.
 | `yett run [--env-file <f>] -- <cmd>` | resolve `.env.refs` and `exec` the command |
 | `yett get <tier>/<pointer>` | print one value to stdout, for scripts; a full `ref+sops://...` also works |
 | `yett set [--env-file <f>] [--ref <name>] <tier> <pointer>` | replace one value, or create the file; `--ref` also upserts its environment reference |
+| `yett import [--from <f>] [--tier <t>] [--env-file <f>] [--dry-run] [--exclude <k1,k2>] [--force]` | migrate every variable from a dotenv file into one encrypted tier and write its references |
 | `yett edit <tier>` | `$EDITOR` on a RAM-backed copy of the document |
 | `yett access list\|add\|remove\|sync` | manage `.yett/secrets-access.yaml` and `.sops.yaml` |
 | `yett check` | verify the access list, `.sops.yaml`, and every reference |
