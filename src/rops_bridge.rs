@@ -30,9 +30,31 @@ fn with_sops_version(text: &str) -> Result<String, BridgeError> {
         serde_yaml::Value::String("version".into()),
         serde_yaml::Value::String(SOPS_VERSION.into()),
     );
-    serde_yaml::to_string(&document).map_err(|error| {
+    let serialized = serde_yaml::to_string(&document).map_err(|error| {
         BridgeError::Encrypt(format!("cannot serialize the sops document: {error}"))
-    })
+    })?;
+    Ok(quote_lastmodified(serialized))
+}
+
+fn quote_lastmodified(text: String) -> String {
+    let mut out = String::with_capacity(text.len() + 8);
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        match trimmed.strip_prefix("lastmodified:") {
+            Some(value) => {
+                let indent = &line[..line.len() - trimmed.len()];
+                let value = value.trim();
+                if value.starts_with('"') || value.starts_with('\'') {
+                    out.push_str(line);
+                } else {
+                    out.push_str(&format!("{indent}lastmodified: \"{value}\""));
+                }
+            }
+            None => out.push_str(line),
+        }
+        out.push('\n');
+    }
+    out
 }
 
 type EncryptedYaml = RopsFile<EncryptedFile<AES256GCM, SHA512>, YamlFileFormat>;
@@ -305,6 +327,20 @@ mod tests {
                 assert!(String::from_utf8_lossy(&output.stdout).contains("hunter2"));
             }
         }
+
+        env.unset("ROPS_AGE");
+        env.unset("ROPS_AGE_KEY_FILE");
+    }
+
+    #[test]
+    fn emitted_metadata_quotes_lastmodified_for_newer_sops() {
+        let env = EnvSandbox::acquire();
+        let (recipient, identity) = identity_pair();
+        let ciphertext = encrypt_yaml(PLAINTEXT, &recipient).unwrap();
+
+        assert!(ciphertext.contains("lastmodified: \""), "{ciphertext}");
+        assert!(!ciphertext.contains("lastmodified: 2"), "{ciphertext}");
+        decrypt_yaml(&ciphertext, &identity).unwrap();
 
         env.unset("ROPS_AGE");
         env.unset("ROPS_AGE_KEY_FILE");
