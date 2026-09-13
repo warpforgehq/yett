@@ -1,10 +1,11 @@
 # yett
 
-Commit your project's secrets. Values are encrypted, a diff shows which key
-changed, and the decrypted values go into a process's environment when you run
-it. Nothing plaintext reaches disk.
+Keep your project's secrets in Git. Values are encrypted, a diff shows which
+key changed, and the decrypted values go into a process's environment when you
+run it, never into a file yett writes.
 
-**Status:** pre-1.0, the interface is settling. macOS and Linux.
+**Status:** unreleased pre-1.0 software. The interface is still settling.
+macOS and Linux.
 
 ## The problem
 
@@ -52,16 +53,17 @@ short-lived process, and the files are plain SOPS.
 
 ## Install
 
+Not on crates.io, npm, or a Homebrew tap yet. Build from source for now:
+
 ```sh
-brew install ephor/tap/yett
-npm install -g @warpforge/yett
-cargo install yett
+git clone https://github.com/warpforgehq/yett
+cd yett && cargo install --path .
 ```
 
-Every GitHub Release carries prebuilt archives for macOS (arm64, amd64) and
-Linux (arm64, amd64). The npm package ships the binary through per-platform
-`@warpforge/yett-<os>-<arch>` optional dependencies, so `npx yett` works
-without a compiler. The tap lives at `ephor/homebrew-tap`.
+The first release adds `cargo install yett`, a Homebrew tap, prebuilt archives
+for macOS and Linux on arm64 and amd64, and `@warpforge/yett` on npm with
+per-platform optional dependencies so `npx yett` needs no compiler. Nothing is
+published until that release exists.
 
 The `sops` binary is optional. Everything below runs through `yett` alone;
 `sops` stays useful for reading and editing the files without it.
@@ -239,7 +241,8 @@ per app. `yett` does not walk up the tree looking for `.yett/` yet.
 
 ## Leaving: compatibility with sops
 
-These guarantees are tested in `tests/sops_compat.rs`.
+These guarantees are tested in `tests/sops_compat.rs`, which runs in CI on
+Ubuntu and macOS.
 
 - A file written by `yett` decrypts with `sops --decrypt`.
 - A file encrypted by `sops --encrypt --age <recipient>` resolves through
@@ -262,11 +265,10 @@ Secrets arrive as environment variables. A process running as you can read
 another process's environment. This does not defend against code running as
 you.
 
-The protections are narrower. Encrypted files are safe to commit, plaintext
-values are never written to disk, and the identity at the default path is
-passphrase-encrypted with the passphrase prompted on a TTY. Upstream `age`
-offers no way to supply a passphrase from an environment variable or a config
-file, so nothing running as you can answer the prompt on your behalf. Each
+The protections are narrower. Encrypted files are safe to commit, yett never
+writes a resolved value to a file, and the identity at the default path is
+passphrase-encrypted. yett reads the passphrase only from the terminal: there
+is no environment-variable or config-file channel for it. Each
 command is a new process, so it prompts once per tier it touches; nothing stays
 unlocked between commands. In memory, secret buffers are zeroized on drop and,
 where the platform allows,

@@ -24,8 +24,8 @@ yett init --tiers dev --handle your-github-handle
 
 It asks for a passphrase twice, creates `.yett/`, `.sops.yaml`, and
 `.env.refs`, and registers your public key. The passphrase protects the private
-key in `~/.config/yett/dev.key.age`. It is never committed, and nothing can
-answer the prompt for you.
+key in `~/.config/yett/dev.key.age`. It is never committed, and yett reads
+the passphrase only from the terminal.
 
 Add the first secret:
 
@@ -140,8 +140,8 @@ Edit a whole document:
 yett edit dev
 ```
 
-It opens `$EDITOR` on a RAM-backed copy and re-encrypts on save. Nothing
-plaintext is written to disk. On Linux this needs `/dev/shm`; on macOS it
+It opens `$EDITOR` on a RAM-backed copy and re-encrypts on save. yett writes
+the plaintext only to that RAM-backed workspace. On Linux this needs `/dev/shm`; on macOS it
 creates and ejects a small RAM disk.
 
 Read one value in a script:
@@ -150,7 +150,7 @@ Read one value in a script:
 yett get dev/db/url
 ```
 
-Check that everything is consistent before merging, exactly as CI does:
+Check that everything is consistent before merging:
 
 ```sh
 yett check

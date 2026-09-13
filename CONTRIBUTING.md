@@ -19,8 +19,8 @@ topic files).
 
 ## Releases
 
-Push a tag `v<version>` that matches the version in `Cargo.toml`.
-`.github/workflows/release.yml` then:
+Once the release secrets are configured, push a tag `v<version>` that matches
+the version in `Cargo.toml`. `.github/workflows/release.yml` then:
 
 1. builds four native archives on their own runners (`x86_64`/`aarch64` for
    Linux and macOS) and attaches them plus `SHA256SUMS` to the GitHub Release;
