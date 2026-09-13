@@ -110,7 +110,9 @@ LOG_LEVEL=debug
 
 Already have a `.env.local`? Migrate every variable in one command. `yett`
 encrypts the values for `dev`, writes their references, and leaves the source
-file untouched:
+file untouched. If the tier already exists, its values are preserved and
+same-name keys are updated from the import. Opening an existing tier uses your
+identity and may prompt once; creating a new tier does not prompt:
 
 ```console
 $ yett import

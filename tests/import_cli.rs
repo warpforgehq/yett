@@ -24,7 +24,7 @@ impl Fixture {
     fn import(&self, args: &[&str]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_yett"))
             .current_dir(self.dir.path())
-            .arg("import")
+            .args(["--identity", self.key.path.to_str().unwrap(), "import"])
             .args(args)
             .output()
             .unwrap()
@@ -44,6 +44,100 @@ impl Fixture {
     fn read(&self, path: &str) -> String {
         std::fs::read_to_string(self.dir.path().join(path)).unwrap()
     }
+}
+
+#[test]
+fn existing_secrets_survive_repeated_imports() {
+    let f = fixture("A=one\nB=two\n");
+    let set = Command::new(env!("CARGO_BIN_EXE_yett"))
+        .current_dir(f.dir.path())
+        .args([
+            "--identity",
+            f.key.path.to_str().unwrap(),
+            "set",
+            "dev",
+            "KEEP_ME",
+        ])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            use std::io::Write;
+            child.stdin.take().unwrap().write_all(b"KEEP-ME")?;
+            child.wait_with_output()
+        })
+        .unwrap();
+    assert_ok(&set);
+
+    assert_ok(&f.import(&[]));
+    assert_ok(&f.import(&[]));
+
+    assert_eq!(f.get("KEEP_ME"), "KEEP-ME\n");
+    assert_eq!(f.get("A"), "one\n");
+    assert_eq!(f.get("B"), "two\n");
+}
+
+#[test]
+fn import_overwrites_an_existing_key() {
+    let f = fixture("A=after\n");
+    let set = Command::new(env!("CARGO_BIN_EXE_yett"))
+        .current_dir(f.dir.path())
+        .args([
+            "--identity",
+            f.key.path.to_str().unwrap(),
+            "set",
+            "dev",
+            "A",
+        ])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            use std::io::Write;
+            child.stdin.take().unwrap().write_all(b"before")?;
+            child.wait_with_output()
+        })
+        .unwrap();
+    assert_ok(&set);
+
+    assert_ok(&f.import(&[]));
+
+    assert_eq!(f.get("A"), "after\n");
+}
+
+#[test]
+fn decryption_failure_changes_neither_tier_nor_env_file() {
+    let f = fixture("A=after\n");
+    let set = Command::new(env!("CARGO_BIN_EXE_yett"))
+        .current_dir(f.dir.path())
+        .args([
+            "--identity",
+            f.key.path.to_str().unwrap(),
+            "set",
+            "dev",
+            "KEEP_ME",
+        ])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            use std::io::Write;
+            child.stdin.take().unwrap().write_all(b"KEEP-ME")?;
+            child.wait_with_output()
+        })
+        .unwrap();
+    assert_ok(&set);
+    std::fs::write(f.dir.path().join(".env.refs"), "# unchanged\n").unwrap();
+    let tier_before = f.read(".yett/secrets.dev.enc.yaml");
+    let env_before = f.read(".env.refs");
+    let stranger = key(f.dir.path(), "stranger.key");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_yett"))
+        .current_dir(f.dir.path())
+        .args(["--identity", stranger.path.to_str().unwrap(), "import"])
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(f.read(".yett/secrets.dev.enc.yaml"), tier_before);
+    assert_eq!(f.read(".env.refs"), env_before);
 }
 
 fn assert_ok(output: &Output) {

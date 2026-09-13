@@ -219,8 +219,12 @@ command (`run`, `get`, `check`, `access sync`) takes `--identity <path>`, with
   is replaced in place; an existing literal value is a usage error checked
   before the encrypted file is changed.
 - **`import`** migrates every key from `.env.local` (or `--from <path>`) into
-  the selected tier without secret-name heuristics or an identity prompt,
-  writes canonical references to `.env.refs`, and leaves the source untouched.
+  the selected tier without secret-name heuristics, writes canonical references
+  to `.env.refs`, and leaves the source untouched. When the tier already
+  exists, imported values are merged into it: existing values are preserved,
+  while an imported value overwrites the same key. The configured identity is
+  used to open that tier, so an encrypted identity may prompt once. An absent
+  tier is created without an identity prompt.
   `--exclude` omits exact key names, `--dry-run` prints the references without
   writing, and `--force` permits replacing literal values in the env file.
 - **`init`** creates `.yett/`, `.env.refs`, an empty access list, and the

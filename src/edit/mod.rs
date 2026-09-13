@@ -104,6 +104,20 @@ pub fn edit(tier: &str, identity: Option<PathBuf>) -> Result<(), Error> {
     file.seal(edited.as_str())
 }
 
+pub(crate) fn merge(
+    tier: &str,
+    identity: Option<&Path>,
+    values: &[(String, String)],
+) -> Result<(), Error> {
+    let mut file = TierFile::open(tier, identity)?;
+    for (key, value) in values {
+        insert(&mut file.map, &[], key, value)?;
+    }
+    file.relock();
+    let plaintext = file.plaintext()?;
+    file.seal(plaintext.as_str())
+}
+
 struct TierFile {
     path: PathBuf,
     recipients: Vec<String>,

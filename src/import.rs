@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::dotenv::Dotenv;
 use crate::envfile::Upsert;
@@ -10,6 +10,7 @@ pub fn import(
     from: &Path,
     tier: &str,
     env_file: &Path,
+    identity: Option<PathBuf>,
     dry_run: bool,
     exclude: Option<&str>,
     force: bool,
@@ -50,7 +51,7 @@ pub fn import(
         .into_iter()
         .filter(|(_, value)| !Ref::is_ref(value))
         .collect::<Vec<_>>();
-    seal(tier, &secrets)?;
+    seal(tier, identity.as_deref(), &secrets)?;
     upsert.write()?;
     println!(
         "imported {} variables; you can now remove {} or keep it gitignored",
@@ -60,12 +61,15 @@ pub fn import(
     Ok(())
 }
 
-fn seal(tier: &str, values: &[(String, String)]) -> Result<(), Error> {
+fn seal(tier: &str, identity: Option<&Path>, values: &[(String, String)]) -> Result<(), Error> {
     if values.is_empty() {
         crate::edit::tier_path(tier)?;
         return Ok(());
     }
     let path = crate::edit::tier_path(tier)?;
+    if path.is_file() {
+        return crate::edit::merge(tier, identity, values);
+    }
     let recipients = match std::fs::read_to_string(&path) {
         Ok(ciphertext) => crate::sopsconfig::recipients_in_file(&ciphertext)
             .map_err(|error| Error::Usage(format!("{}: {error}", path.display())))?
