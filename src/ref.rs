@@ -32,6 +32,23 @@ pub struct Ref {
     fragment: Option<String>,
 }
 
+impl std::fmt::Display for Ref {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let backend = match self.backend {
+            Backend::Sops => "sops",
+            Backend::Vault => "vault",
+            Backend::Op => "op",
+            Backend::AwsSecrets => "awssecrets",
+        };
+        write!(f, "ref+{backend}://{}", self.path)
+            .and_then(|()| self.params.as_ref().map_or(Ok(()), |p| write!(f, "?{p}")))
+            .and_then(|()| {
+                self.fragment
+                    .as_ref()
+                    .map_or(Ok(()), |fragment| write!(f, "#{fragment}"))
+            })
+    }
+}
 impl Backend {
     fn from_token(token: &str) -> Result<Backend, RefError> {
         match token {
@@ -251,7 +268,6 @@ mod tests {
             fragment: Some("/password"),
         },
     ];
-
     #[test]
     fn parses_valid_references() {
         for case in PARSE_OK {
@@ -262,7 +278,6 @@ mod tests {
             assert_eq!(r.fragment(), case.fragment, "{}", case.input);
         }
     }
-
     const PARSE_ERR: &[(&str, RefError)] = &[
         ("plain-string", RefError::NotARef),
         ("", RefError::NotARef),

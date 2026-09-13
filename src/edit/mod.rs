@@ -19,7 +19,21 @@ use signal::{install_handlers, interrupted_signal, spawn};
 const SECRETS_DIR: &str = ".yett";
 
 pub fn set(tier: &str, pointer: &str, identity: Option<PathBuf>) -> Result<(), Error> {
+    set_with_ref(tier, pointer, identity, Path::new(".env.refs"), None)
+}
+
+pub fn set_with_ref(
+    tier: &str,
+    pointer: &str,
+    identity: Option<PathBuf>,
+    env_file: &Path,
+    reference_name: Option<&str>,
+) -> Result<(), Error> {
     let pointer = normalize_pointer(pointer)?;
+    let reference = pointer_reference(tier, &pointer)?;
+    let upsert = reference_name
+        .map(|name| crate::envfile::Upsert::prepare(env_file, name, &reference.to_string()))
+        .transpose()?;
     let segments = decode_pointer(&pointer)?;
     let Some((leaf, parents)) = segments.split_last() else {
         return Err(Error::Usage(
@@ -33,19 +47,24 @@ pub fn set(tier: &str, pointer: &str, identity: Option<PathBuf>) -> Result<(), E
     file.relock();
     let plaintext = file.plaintext()?;
     if !created {
-        return file.seal(plaintext.as_str());
-    }
-    match file.seal_new(plaintext.as_str())? {
-        access::Publish::Created => Ok(()),
-        access::Publish::AlreadyExists => {
-            drop(file);
-            let mut existing = TierFile::open(tier, identity.as_deref())?;
-            insert(&mut existing.map, parents, leaf, value.as_str())?;
-            existing.relock();
-            let plaintext = existing.plaintext()?;
-            existing.seal(plaintext.as_str())
+        file.seal(plaintext.as_str())?;
+    } else {
+        match file.seal_new(plaintext.as_str())? {
+            access::Publish::Created => {}
+            access::Publish::AlreadyExists => {
+                drop(file);
+                let mut existing = TierFile::open(tier, identity.as_deref())?;
+                insert(&mut existing.map, parents, leaf, value.as_str())?;
+                existing.relock();
+                let plaintext = existing.plaintext()?;
+                existing.seal(plaintext.as_str())?;
+            }
         }
     }
+    if let Some(upsert) = upsert {
+        upsert.write()?;
+    }
+    Ok(())
 }
 
 pub fn edit(tier: &str, identity: Option<PathBuf>) -> Result<(), Error> {

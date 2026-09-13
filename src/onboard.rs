@@ -17,7 +17,7 @@ pub const ENV_REFS_PATH: &str = ".env.refs";
 
 const ACCESS_TEMPLATE: &str = "version: 1\npeople: []\n";
 
-const ENV_REFS_TEMPLATE: &str = "\
+pub const ENV_REFS_TEMPLATE: &str = "\
 # yett environment references. Values starting with `ref+` are resolved when
 # the process starts and injected into its environment.
 # DATABASE_URL=ref+sops://.yett/secrets.dev.enc.yaml#/db/url

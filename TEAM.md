@@ -30,11 +30,11 @@ the passphrase only from the terminal.
 Add the first secret:
 
 ```sh
-printf 'postgres://localhost:5432' | yett set dev db/url
+printf 'postgres://localhost:5432' | yett set --ref DATABASE_URL dev db/url
 ```
 
-Create `.env.refs` if it is empty, so the app knows which variable comes from
-where:
+The same command adds `DATABASE_URL` to `.env.refs`. Add any literal settings
+the app also needs:
 
 ```
 DATABASE_URL=ref+sops://.yett/secrets.dev.enc.yaml#/db/url
@@ -125,7 +125,7 @@ yett run -- npm run dev
 Change a value:
 
 ```sh
-printf 'new-value' | yett set dev db/url
+printf 'new-value' | yett set --ref DATABASE_URL dev db/url
 git add .yett/secrets.dev.enc.yaml
 git commit -m "rotate db url"
 git push

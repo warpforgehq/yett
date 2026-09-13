@@ -38,6 +38,10 @@ enum Command {
         argument: String,
     },
     Set {
+        #[arg(long, value_name = "PATH", default_value = ".env.refs")]
+        env_file: PathBuf,
+        #[arg(long, value_name = "NAME")]
+        r#ref: Option<String>,
         tier: String,
         #[arg(value_name = "POINTER")]
         pointer: String,
@@ -108,7 +112,12 @@ fn run(identity: Option<PathBuf>, command: Command) -> Result<(), Error> {
     match command {
         Command::Run { env_file, command } => yett::run::run(&env_file, identity, &command),
         Command::Get { argument } => get(identity, &argument),
-        Command::Set { tier, pointer } => yett::edit::set(&tier, &pointer, identity),
+        Command::Set {
+            env_file,
+            r#ref,
+            tier,
+            pointer,
+        } => yett::edit::set_with_ref(&tier, &pointer, identity, &env_file, r#ref.as_deref()),
         Command::Edit { tier } => yett::edit::edit(&tier, identity),
         Command::Init { tiers, handle } => init(&tiers, handle.as_deref()),
         Command::Keygen { tier, register } => keygen(&tier, register.as_deref()),

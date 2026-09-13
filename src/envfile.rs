@@ -1,6 +1,10 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use crate::access;
+use crate::error::Error;
+use crate::onboard::ENV_REFS_TEMPLATE;
+
 #[derive(Debug, thiserror::Error)]
 pub enum EnvFileError {
     #[error("cannot read {path}: {source}")]
@@ -70,7 +74,91 @@ impl EnvFile {
     }
 }
 
-fn is_valid_key(key: &str) -> bool {
+pub struct Upsert {
+    path: PathBuf,
+    text: String,
+}
+
+impl Upsert {
+    pub fn prepare(path: &Path, name: &str, reference: &str) -> Result<Self, Error> {
+        if !is_valid_key(name) {
+            return Err(Error::Usage(format!(
+                "invalid environment variable name `{name}`"
+            )));
+        }
+        let existing = match std::fs::read_to_string(path) {
+            Ok(text) => Some(text),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => {
+                return Err(Error::Usage(format!(
+                    "cannot read {}: {error}",
+                    path.display()
+                )))
+            }
+        };
+        let Some(text) = existing else {
+            return Ok(Self {
+                path: path.to_path_buf(),
+                text: format!("{ENV_REFS_TEMPLATE}{name}={reference}\n"),
+            });
+        };
+        let parsed = EnvFile::parse(&text).map_err(|error| Error::Usage(error.to_string()))?;
+        if let Some((_, value)) = parsed.iter().find(|(key, _)| *key == name) {
+            if !crate::r#ref::Ref::is_ref(value) {
+                return Err(Error::Usage(format!(
+                    "{name} already has a literal value in {}; refusing to replace it",
+                    path.display()
+                )));
+            }
+            let text = replace_value(&text, name, reference);
+            return Ok(Self {
+                path: path.to_path_buf(),
+                text,
+            });
+        }
+        let separator = if text.is_empty() || text.ends_with('\n') {
+            ""
+        } else {
+            "\n"
+        };
+        Ok(Self {
+            path: path.to_path_buf(),
+            text: format!("{text}{separator}{name}={reference}\n"),
+        })
+    }
+
+    pub fn write(self) -> Result<(), Error> {
+        access::write_atomic(&self.path, &self.text)
+    }
+}
+
+fn replace_value(text: &str, name: &str, reference: &str) -> String {
+    let mut output = String::with_capacity(text.len() + reference.len());
+    for line in text.split_inclusive('\n') {
+        let content = line.strip_suffix('\n').unwrap_or(line);
+        let ending = if line.ends_with('\n') { "\n" } else { "" };
+        let body = content.strip_suffix('\r').unwrap_or(content);
+        let trimmed = body.trim_start();
+        let assignment = trimmed.strip_prefix("export ").unwrap_or(trimmed);
+        let matches = assignment
+            .split_once('=')
+            .is_some_and(|(key, _)| key.trim() == name);
+        if matches {
+            let equals = content.find('=').expect("parsed assignment has equals");
+            output.push_str(&content[..=equals]);
+            output.push_str(reference);
+            if content.ends_with('\r') {
+                output.push('\r');
+            }
+            output.push_str(ending);
+        } else {
+            output.push_str(line);
+        }
+    }
+    output
+}
+
+pub fn is_valid_key(key: &str) -> bool {
     let mut chars = key.chars();
     match chars.next() {
         Some(c) if c.is_ascii_alphabetic() || c == '_' => {}

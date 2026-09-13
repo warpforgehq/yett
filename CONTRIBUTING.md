@@ -59,7 +59,7 @@ CI cannot mount a RAM disk, so run the `edit` path by hand after changes to
 ```sh
 D=$(mktemp -d) && cd "$D"
 yett init --tiers dev --handle your-github-handle   # prompts for the identity passphrase
-printf 'hunter2' | yett set dev db/password
+printf 'hunter2' | yett set --ref DATABASE_PASSWORD dev db/password
 
 cat > editor.sh <<'EOF'
 #!/bin/sh

@@ -93,15 +93,15 @@ Write the first secret. `set` creates the encrypted file, encrypting to the
 recipients in the access list; the value comes from stdin:
 
 ```console
-$ printf 'correct-horse-battery-staple' | yett set dev DATABASE_PASSWORD
+$ printf 'correct-horse-battery-staple' | yett set --ref DATABASE_PASSWORD dev DATABASE_PASSWORD
 
 $ yett get dev/DATABASE_PASSWORD
 yett: passphrase for the dev identity:
 correct-horse-battery-staple
 ```
 
-Add the reference to `.env.refs` (the file `init` created, with a commented
-example):
+The same command adds the reference to `.env.refs` while preserving its other
+entries:
 
 ```
 DATABASE_PASSWORD=ref+sops://.yett/secrets.dev.enc.yaml#/DATABASE_PASSWORD
@@ -123,7 +123,7 @@ committed.
 ## Day-to-day
 
 ```console
-$ printf 'new-value' | yett set dev db/password     # replace one value
+$ printf 'new-value' | yett set --ref DATABASE_PASSWORD dev db/password
 $ yett get dev/db/password
 $ yett edit dev                                      # $EDITOR on a RAM-backed copy
 $ yett check                                         # CI: does everything agree?
@@ -187,7 +187,7 @@ runs; the default identity path only accepts a passphrase-encrypted key.
 | `yett keygen [--tier <t>] [--register <h>]` | create the passphrase-encrypted identity; with `--register`, also add its public key to the access list |
 | `yett run [--env-file <f>] -- <cmd>` | resolve `.env.refs` and `exec` the command |
 | `yett get <tier>/<pointer>` | print one value to stdout, for scripts; a full `ref+sops://...` also works |
-| `yett set <tier> <pointer>` | replace one value, or create the file, reading the value from stdin |
+| `yett set [--env-file <f>] [--ref <name>] <tier> <pointer>` | replace one value, or create the file; `--ref` also upserts its environment reference |
 | `yett edit <tier>` | `$EDITOR` on a RAM-backed copy of the document |
 | `yett access list\|add\|remove\|sync` | manage `.yett/secrets-access.yaml` and `.sops.yaml` |
 | `yett check` | verify the access list, `.sops.yaml`, and every reference |

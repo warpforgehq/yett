@@ -183,7 +183,7 @@ dead service or a request sent to a third party with a placeholder in it.
 ```
 yett run [--env-file <f>] [--identity <path>] -- <command> [args...]
 yett get <tier>/<pointer>             # e.g. `yett get dev/db/url`
-yett set <tier> <pointer>            # reads value from stdin
+yett set [--env-file <f>] [--ref <name>] <tier> <pointer>  # reads value from stdin
 yett edit <tier>                     # $EDITOR on a RAM-backed path
 yett init [--tiers <t,...>] [--handle <h>]  # --handle scaffolds one tier end to end
 yett keygen [--tier <t>] [--register <h>]   # --register registers the key and refreshes .sops.yaml
@@ -212,7 +212,11 @@ command (`run`, `get`, `check`, `access sync`) takes `--identity <path>`, with
   `/db/url`; the leading slash is optional. When the tier file does not exist
   it creates it from the recipients in `.yett/secrets-access.yaml`, so the
   first secret needs no separate `sops` step; a tier with no recipients is a
-  usage error and creates nothing.
+  usage error and creates nothing. With `--ref <name>`, it also upserts the
+  canonical reference in `--env-file <f>` (default `.env.refs`), creating that
+  file with the `init` header when needed. An existing reference for the name
+  is replaced in place; an existing literal value is a usage error checked
+  before the encrypted file is changed.
 - **`init`** creates `.yett/`, `.env.refs`, an empty access list, and the
   generated `.sops.yaml`. With `--handle <h>` and exactly one tier it also
   creates (or reuses) the identity and registers its public key, so the first
