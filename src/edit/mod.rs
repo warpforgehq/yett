@@ -61,6 +61,9 @@ pub fn edit(tier: &str, identity: Option<PathBuf>) -> Result<(), Error> {
     drop(plaintext);
 
     let argv = editor_argv(editor.as_deref(), workspace.path())?;
+    if let Some(signal) = interrupted_signal() {
+        return Err(Error::Interrupted(signal));
+    }
     let status = spawn(&argv)?;
     if let Some(signal) = interrupted_signal() {
         return Err(Error::Interrupted(signal));

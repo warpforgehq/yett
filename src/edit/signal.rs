@@ -59,6 +59,11 @@ pub(super) fn spawn(argv: &[String]) -> Result<std::process::ExitStatus, Error> 
     };
     EDITOR_PID.store(child.id() as i32, Ordering::SeqCst);
     restore_signal_mask(previous);
+    if interrupted_signal().is_some() {
+        unsafe {
+            libc::kill(child.id() as libc::pid_t, libc::SIGKILL);
+        }
+    }
 
     let status = child
         .wait()

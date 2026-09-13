@@ -1,4 +1,6 @@
-use super::signal::{should_forward, SI_QUEUE, SI_USER};
+use std::sync::atomic::Ordering;
+
+use super::signal::{should_forward, INTERRUPTED, SI_QUEUE, SI_USER};
 use super::*;
 
 const TARGET: &str = "/dev/shm/yett-dev.yaml";
@@ -73,6 +75,26 @@ fn only_self_directed_signals_are_forwarded() {
     {
         assert!(!should_forward(libc::SI_KERNEL));
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn an_interrupt_before_the_editor_starts_still_kills_it() {
+    INTERRUPTED.store(libc::SIGINT, Ordering::SeqCst);
+    let started = std::time::Instant::now();
+    let status = spawn(&["sleep".to_string(), "30".to_string()]);
+    INTERRUPTED.store(0, Ordering::SeqCst);
+
+    let status = status.expect("spawn sleep");
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(5),
+        "{status}"
+    );
+    assert_eq!(
+        std::os::unix::process::ExitStatusExt::signal(&status),
+        Some(libc::SIGKILL),
+        "{status}"
+    );
 }
 
 #[test]
