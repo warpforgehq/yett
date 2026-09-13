@@ -2696,7 +2696,7 @@ dependencies = [
 
 [[package]]
 name = "yett"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "age 0.12.1",
  "base64 0.22.1",
