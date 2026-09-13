@@ -65,14 +65,32 @@ pub(super) fn spawn(argv: &[String]) -> Result<std::process::ExitStatus, Error> 
         }
     }
 
-    let status = child
-        .wait()
+    let status = wait_for_editor(&mut child)
         .map_err(|error| Error::Usage(format!("cannot wait for `{program}`: {error}")));
 
     let previous = block_termination_signals();
     EDITOR_PID.store(0, Ordering::SeqCst);
     restore_signal_mask(previous);
     status
+}
+
+fn wait_for_editor(child: &mut std::process::Child) -> std::io::Result<std::process::ExitStatus> {
+    const GRACE: std::time::Duration = std::time::Duration::from_secs(2);
+    let mut interrupted_at: Option<std::time::Instant> = None;
+    loop {
+        if let Some(status) = child.try_wait()? {
+            return Ok(status);
+        }
+        match (interrupted_signal(), interrupted_at) {
+            (Some(_), None) => interrupted_at = Some(std::time::Instant::now()),
+            (Some(_), Some(started)) if started.elapsed() >= GRACE => {
+                let _ = child.kill();
+            }
+            (None, _) => interrupted_at = None,
+            _ => {}
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
 }
 
 pub(super) fn interrupted_signal() -> Option<i32> {
